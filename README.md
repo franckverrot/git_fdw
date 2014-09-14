@@ -1,7 +1,8 @@
 # PostgreSQL Git Foreign Data Wrapper
 
 git\_fdw is a a Git Foreign Data Wrapper for PostgreSQL written in C.
-It is making use of ]`libgit2`](libgit2.github.com).
+
+It is making use of [`libgit2`](libgit2.github.com).
 
 ## INSTALLATION
 
