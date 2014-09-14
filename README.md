@@ -33,7 +33,9 @@ Now you can start setting up your environment to access git repositories:
     franck=# CREATE SERVER git_fdw_server FOREIGN DATA WRAPPER git_fdw;
     CREATE SERVER
 
-    franck=# CREATE FOREIGN TABLE rails_repository (message text, author text) SERVER git_fdw_server OPTIONS (path '/home/franck/rails/.git');
+    franck=# CREATE FOREIGN TABLE rails_repository (message text, author text)
+        SERVER git_fdw_server
+        OPTIONS (path '/home/franck/rails/.git');
     CREATE FOREIGN TABLE
 
     franck=# SELECT * FROM rails_repository LIMIT 10;
@@ -44,7 +46,7 @@ Now you can start setting up your environment to access git repositories:
      Change ActiveJob test directory to "test/jobs"          +| yuuji.yaginuma <yuuji.yaginuma@[REDACTED].com>
                                                               |
      Merge pull request #16669 from aantix/dangerous_attribut | Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
-     Changed the DangerousAttributeError exception message to | Jim Jones <jjones@aantix.com>
+     Changed the DangerousAttributeError exception message to | Jim Jones <jjones@[REDACTED].com>
      Prepare maintenance policy for 4.2 release [ci skip]    +| Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
                                                               |
      Se the test order of activejob tests                    +| Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
