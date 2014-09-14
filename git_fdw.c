@@ -40,6 +40,7 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
 		ForeignPath *best_path, List *tlist, List *scan_clauses);
 static void gitBeginForeignScan(ForeignScanState *node, int eflags);
+static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
 static void fileReScanForeignScan(ForeignScanState *node);
 static void gitEndForeignScan(ForeignScanState *node);
@@ -60,6 +61,7 @@ Datum git_fdw_handler(PG_FUNCTION_ARGS) {
 	fdwroutine->BeginForeignScan   = gitBeginForeignScan;
 	fdwroutine->IterateForeignScan = gitIterateForeignScan;
 	fdwroutine->EndForeignScan     = gitEndForeignScan;
+	fdwroutine->ExplainForeignScan = gitExplainForeignScan;
 
 	fdwroutine->ReScanForeignScan  = fileReScanForeignScan;
 
@@ -219,15 +221,14 @@ static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, O
 	return scan;
 }
 
+static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es) {
+}
+
 static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
 	ForeignScan *plan = (ForeignScan *) node->ss.ps.plan;
 	GitFdwExecutionState *festate;
 	FILE * file;
 	git_oid oid;
-
-	// Do nothing in EXPLAIN (no ANALYZE) case.  node->fdw_state stays NULL.
-	if (eflags & EXEC_FLAG_EXPLAIN_ONLY)
-		return;
 
 	festate = (GitFdwExecutionState *) palloc(sizeof(GitFdwExecutionState));
         festate->path = repository_path;
