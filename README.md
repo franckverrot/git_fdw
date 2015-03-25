@@ -75,8 +75,12 @@ The possible options are:
 
 * `path`: The path of the git repository;
 
+## TODO
 
-# Note on Patches/Pull Requests
+* [ ] Publish the extension on [PGXN](http://pgxn.org/)
+
+
+## Note on Patches/Pull Requests
 
 * Fork the project.
 * Make your feature addition or bug fix.
@@ -86,4 +90,4 @@ The possible options are:
 
 ## LICENSE
 
-Copyright (c) 2014 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
+Copyright (c) 2014-2015 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
