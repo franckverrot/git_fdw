@@ -223,13 +223,15 @@ static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es) {
 }
 
 static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
+  git_libgit2_init();
   // ForeignScan *plan = (ForeignScan *)node->ss.ps.plan;
   GitFdwExecutionState *festate;
   git_oid oid;
 
   festate = (GitFdwExecutionState *) palloc(sizeof(GitFdwExecutionState));
   festate->path = repository_path;
-  // festate->repo = festate->walker = NULL;
+  festate->repo = NULL;
+  festate->walker = NULL;
 
   node->fdw_state = (void *) festate;
 
@@ -338,6 +340,7 @@ static void gitEndForeignScan(ForeignScanState *node) {
   git_repository_free(festate->repo);
   festate->repo   = NULL;
   festate->walker = NULL;
+  git_libgit2_shutdown();
 }
 
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel, GitFdwPlanState *fdw_private, Cost *startup_cost, Cost *total_cost)
