@@ -38,6 +38,7 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 
 #define POSTGRES_TO_UNIX_EPOCH_DAYS (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE)
 #define POSTGRES_TO_UNIX_EPOCH_USECS (POSTGRES_TO_UNIX_EPOCH_DAYS * USECS_PER_DAY)
+#define DEFAULT_BRANCH "master"
 
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
@@ -50,7 +51,7 @@ static void fileReScanForeignScan(ForeignScanState *node);
 static void gitEndForeignScan(ForeignScanState *node);
 
 static bool is_valid_option(const char *option, Oid context);
-static void gitGetOptions(Oid foreigntableid, char **path, List **other_options);
+static void gitGetOptions(Oid foreigntableid, GitFdwPlanState *state, List **other_options);
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
     GitFdwPlanState *fdw_private,
     Cost *startup_cost, Cost *total_cost);
@@ -75,7 +76,8 @@ Datum git_fdw_handler(PG_FUNCTION_ARGS) {
 Datum git_fdw_validator(PG_FUNCTION_ARGS) {
   List     *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
   Oid      catalog = PG_GETARG_OID(1);
-  char     *path = NULL;
+  char     *path   = NULL;
+  char     *branch = NULL;
   List     *other_options = NIL;
   ListCell   *cell;
 
@@ -116,6 +118,14 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
              errmsg("conflicting or redundant options")));
       path = defGetString(def);
     }
+    else if (strcmp(def->defname, "branch") == 0)
+    {
+      if (branch)
+        ereport(ERROR,
+            (errcode(ERRCODE_SYNTAX_ERROR),
+             errmsg("conflicting or redundant options")));
+      branch = defGetString(def);
+    }
     else
       other_options = lappend(other_options, def);
   }
@@ -130,6 +140,7 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
 // FIXME: Avoid global variable
 // TODO:  Find where this variable should go (Plan or Path?)
 char * repository_path;
+char * repository_branch;
 
 static bool is_valid_option(const char *option, Oid context) {
   const struct GitFdwOption *opt;
@@ -142,7 +153,7 @@ static bool is_valid_option(const char *option, Oid context) {
 }
 
 // Fetch path and options from the server (only)
-static void gitGetOptions(Oid foreigntableid, char **path, List **other_options) {
+static void gitGetOptions(Oid foreigntableid, GitFdwPlanState *state, List **other_options) {
   ForeignTable *table;
   List     *options;
   ListCell   *lc,
@@ -153,22 +164,29 @@ static void gitGetOptions(Oid foreigntableid, char **path, List **other_options)
   options = NIL;
   options = list_concat(options, table->options);
 
-  *path = NULL;
-
   prev = NULL;
   foreach(lc, options) {
     DefElem *def = (DefElem *) lfirst(lc);
 
     if (strcmp(def->defname, "path") == 0) {
-      *path = defGetString(def);
+      state->path = defGetString(def);
       options = list_delete_cell(options, lc, prev);
-      break;
     }
+
+    if (strcmp(def->defname, "branch") == 0) {
+      state->branch = defGetString(def);
+      options = list_delete_cell(options, lc, prev);
+    }
+
     prev = lc;
   }
 
-  if (*path == NULL) {
+  if (state->path == NULL) {
     elog(ERROR, "path is required for git_fdw foreign tables (path of the .git repo)");
+  }
+
+  if (state->branch == NULL) {
+    state->branch = DEFAULT_BRANCH;
   }
 
   *other_options = options;
@@ -180,7 +198,7 @@ static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid for
   // Pass path and options from the options (only the table for now, but
   // could be from the server too) into the baserel
   fdw_private = (GitFdwPlanState *) palloc(sizeof(GitFdwPlanState));
-  gitGetOptions(foreigntableid, &fdw_private->path, &fdw_private->options);
+  gitGetOptions(foreigntableid, fdw_private, &fdw_private->options);
   baserel->fdw_private = (void *) fdw_private;
   // TODO: We should estimate baserel->rows
 }
@@ -219,7 +237,8 @@ static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, O
   ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private);
 
   //ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, baserel->fdw_private);
-  repository_path = ((GitFdwPlanState*)scan->fdw_private)->path;
+  repository_path   = ((GitFdwPlanState*)scan->fdw_private)->path;
+  repository_branch = ((GitFdwPlanState*)scan->fdw_private)->branch;
   return scan;
 }
 
@@ -233,8 +252,9 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
   git_oid oid;
 
   festate = (GitFdwExecutionState *) palloc(sizeof(GitFdwExecutionState));
-  festate->path = repository_path;
-  festate->repo = NULL;
+  festate->path   = repository_path;
+  festate->branch = repository_branch;
+  festate->repo   = NULL;
   festate->walker = NULL;
 
   node->fdw_state = (void *) festate;
@@ -246,18 +266,17 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
       return;
     }
 
-    // Read HEAD on master
+    // Read HEAD on specified branch (DEFAULT_BRANCH by default)
     char head_filepath[512];
     FILE *head_fileptr;
     char head_rev[41];
 
     strcpy(head_filepath, festate->path);
-
     if(strrchr(festate->path, '/') != (festate->path+strlen(festate->path)))
-      strcat(head_filepath, "/refs/heads/master");
+      strcat(head_filepath, "/refs/heads/");
     else
-      strcat(head_filepath, "refs/heads/master");
-
+      strcat(head_filepath, "refs/heads/");
+    strcat(head_filepath, festate->branch);
 
     if((head_fileptr = fopen(head_filepath, "r")) == NULL){
       elog(ERROR, "Error opening '%s'\n", head_filepath);

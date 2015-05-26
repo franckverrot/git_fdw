@@ -43,7 +43,10 @@ Now you can start setting up your environment to access git repositories:
             commit_date timestamp with time zone
         )
         SERVER git_fdw_server
-        OPTIONS (path '/home/franck/rails/.git');
+        OPTIONS (
+            path   '/home/franck/rails/.git'
+            branch 'master'
+        );
     CREATE FOREIGN TABLE
 
     franck=# SELECT message, name FROM rails_repository LIMIT 10;
@@ -81,6 +84,7 @@ There are no options that can be passed to a git\_fdw server.
 The possible options are:
 
 * `path`: The path of the git repository;
+* `branch`: The branch to be used.
 
 ## TODO
 
