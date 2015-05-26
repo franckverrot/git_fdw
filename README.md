@@ -25,37 +25,44 @@ and installing it only requires oneself to
 Now you can start setting up your environment to access git repositories:
 
     λ psql
-    psql (9.3.5)
+    psql (9.4.1)
     Type "help" for help.
-    
+
     franck=# CREATE EXTENSION git_fdw;
     CREATE EXTENSION
 
     franck=# CREATE SERVER git_fdw_server FOREIGN DATA WRAPPER git_fdw;
     CREATE SERVER
 
-    franck=# CREATE FOREIGN TABLE rails_repository (message text, author text)
+    franck=# CREATE FOREIGN TABLE
+        rails_repository (
+            sha1        text,
+            message     text,
+            name        text,
+            email       text,
+            commit_date timestamp with time zone
+        )
         SERVER git_fdw_server
         OPTIONS (path '/home/franck/rails/.git');
     CREATE FOREIGN TABLE
 
-    franck=# SELECT * FROM rails_repository LIMIT 10;
-                             message                          |                          author
-    ----------------------------------------------------------+----------------------------------------------------------
-     Revert "Merge pull request #15312 from JuanitoFatas/acti | Matthew Draper <matthew@[REDACTED].net>
-     Merge pull request #16908 from y-yagi/change_activejob_t | Abdelkader Boudih <terminale@[REDACTED].com>
-     Change ActiveJob test directory to "test/jobs"          +| yuuji.yaginuma <yuuji.yaginuma@[REDACTED].com>
+    franck=# SELECT message, name FROM rails_repository LIMIT 10;
+                             message                          |          name
+    ----------------------------------------------------------+------------------------
+     Revert "Merge pull request #15312 from JuanitoFatas/acti | Matthew Draper
+     Merge pull request #16908 from y-yagi/change_activejob_t | Abdelkader Boudih
+     Change ActiveJob test directory to "test/jobs"          +| yuuji.yaginuma
                                                               |
-     Merge pull request #16669 from aantix/dangerous_attribut | Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
-     Changed the DangerousAttributeError exception message to | Jim Jones <jjones@[REDACTED].com>
-     Prepare maintenance policy for 4.2 release [ci skip]    +| Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
+     Merge pull request #16669 from aantix/dangerous_attribut | Rafael Mendonça França
+     Changed the DangerousAttributeError exception message to | Jim Jones
+     Prepare maintenance policy for 4.2 release [ci skip]    +| Rafael Mendonça França
                                                               |
-     Se the test order of activejob tests                    +| Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
+     Se the test order of activejob tests                    +| Rafael Mendonça França
                                                               |
-     Change gid calls to to_gid                              +| Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
+     Change gid calls to to_gid                              +| Rafael Mendonça França
                                                               |
-     Merge pull request #16897 from kostia/message-varifier-r | Rafael Mendonça França <rafaelmfranca@[REDACTED].com>
-     Changes "if secret.nil?" to unless secret in MessageVerf | Kostiantyn Kahanskyi <kostiantyn.kahanskyi@[REDACTED].co
+     Merge pull request #16897 from kostia/message-varifier-r | Rafael Mendonça França
+     Changes "if secret.nil?" to unless secret in MessageVerf | Kostiantyn Kahanskyi
     (10 rows)
 
 
