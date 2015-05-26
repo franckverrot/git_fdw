@@ -1,0 +1,13 @@
+# Unreleased (2.0.0)
+
+## Breaking changes
+
+* User name and email are now two different fields
+
+## Updates
+
+* Add support for new columns and rework others
+
+# Release 1.0.0
+
+* Initial release
