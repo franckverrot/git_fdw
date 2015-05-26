@@ -26,6 +26,7 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/builtins.h"
+#include "utils/timestamp.h"
 #include "plan_state.h"
 #include "execution_state.h"
 #include "options.h"
@@ -34,6 +35,9 @@ PG_MODULE_MAGIC;
 
 PG_FUNCTION_INFO_V1(git_fdw_handler);
 PG_FUNCTION_INFO_V1(git_fdw_validator);
+
+#define POSTGRES_TO_UNIX_EPOCH_DAYS (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE)
+#define POSTGRES_TO_UNIX_EPOCH_USECS (POSTGRES_TO_UNIX_EPOCH_DAYS * USECS_PER_DAY)
 
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
@@ -287,11 +291,13 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
   git_oid oid;
   git_commit *commit;
+  int position;
 
   ExecClearTuple(slot);
 
-  const char *commit_message;
+  const char          *commit_message;
   const git_signature *commit_author;
+  const git_oid       *commit_sha1;
 
   if (git_revwalk_next(&oid, festate->walker) == GIT_OK) {
     if(git_commit_lookup(&commit, festate->repo, &oid)) {
@@ -299,29 +305,52 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
       return NULL;
     }
 
-    commit_message  = git_commit_message(commit);
-    commit_author = git_commit_committer(commit);
+    commit_message = git_commit_message(commit);
+    commit_author  = git_commit_committer(commit);
+    commit_sha1    = git_commit_id(commit);
 
-    char * commit_msg = (char*)palloc(strlen(commit_message) + 1 /* prefix */ + 1 /* 0 */);
+    int padding = 1 /* prefix */ + 1 /* 0 */;
+    char * commit_id    = (char*)palloc(40  + padding);
+    char * commit_msg   = (char*)palloc(strlen(commit_message) + padding);
+    char * author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + padding)));
+    char * author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + padding)));
+
+    git_oid_fmt(commit_id + 1, commit_sha1);
+    commit_id[0] = 's';
+    Datum sha1 = CStringGetDatum(commit_id);
+
     sprintf(commit_msg, "s%s", commit_message);
     Datum message = CStringGetDatum(commit_msg);
 
-    char * author_content = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + strlen(commit_author->email) + strlen(" <>") + 2)));
-    sprintf(author_content, "s%s <%s>", commit_author->name, commit_author->email);
-    Datum author  = CStringGetDatum(author_content);
+    sprintf(author_name, "s%s", commit_author->name);
+    Datum name = CStringGetDatum(author_name);
+
+    sprintf(author_email, "s%s", commit_author->email);
+    Datum email = CStringGetDatum(author_email);
+
+    Datum date = (commit_author->when.time * 1000000L) - POSTGRES_TO_UNIX_EPOCH_USECS;
 
     git_commit_free(commit);
 
     slot->tts_isempty = false;
-    slot->tts_nvalid = 2; // columns = message, author
+    slot->tts_nvalid = 5; // 5 columns = id, message, name, email, timestamp
 
     slot->tts_isnull = (bool *)palloc(sizeof(bool) * slot->tts_nvalid);
-    slot->tts_isnull[0] = false;
-    slot->tts_isnull[1] = false;
-
     slot->tts_values = (Datum *)palloc(sizeof(Datum) * slot->tts_nvalid);
-    slot->tts_values[0] = message;
-    slot->tts_values[1] = author;
+
+    position = 0;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
+
+    position = 0;
+    slot->tts_values[position++] = sha1;
+    slot->tts_values[position++] = message;
+    slot->tts_values[position++] = name;
+    slot->tts_values[position++] = email;
+    slot->tts_values[position++] = date;
 
     ExecStoreVirtualTuple(slot);
     return slot;
