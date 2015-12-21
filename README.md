@@ -44,7 +44,7 @@ Now you can start setting up your environment to access git repositories:
         )
         SERVER git_fdw_server
         OPTIONS (
-            path   '/home/franck/rails/.git'
+            path   '/home/franck/rails/.git',
             branch 'master'
         );
     CREATE FOREIGN TABLE
