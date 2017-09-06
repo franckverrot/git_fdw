@@ -43,7 +43,7 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
-    ForeignPath *best_path, List *tlist, List *scan_clauses);
+    ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan);
 static void gitBeginForeignScan(ForeignScanState *node, int eflags);
 static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
@@ -219,22 +219,28 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
    * it will be propagated into the fdw_private list of the Plan node.
    */
   Path * path = (Path*)create_foreignscan_path(root, baserel,
+      NULL, /* default pathtarget (borrowed from file_fdw) */
       baserel->rows,
       startup_cost,
       total_cost,
       NIL,    /* no pathkeys */
       NULL,    /* no outer rel either */
+      NULL,    /* no extra plan */
       coptions);
 
   add_path(baserel, path);
 }
 
-static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
+static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan) { // #todo #fixme assuming outer_plan is null
   Index scan_relid = baserel->relid;
   scan_clauses = extract_actual_clauses(scan_clauses, false);
 
   best_path->fdw_private = baserel->fdw_private;
-  ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private);
+  //ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private);
+
+  // from file_fdw
+  ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private,
+                                        NIL, NIL, NULL);
 
   //ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, baserel->fdw_private);
   repository_path   = ((GitFdwPlanState*)scan->fdw_private)->path;
