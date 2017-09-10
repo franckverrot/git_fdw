@@ -14,3 +14,4 @@ script:
 env:
   - PG_VERSION=9.5
   - PG_VERSION=9.6
+  - PG_VERSION=10
