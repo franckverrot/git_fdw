@@ -14,7 +14,7 @@ RUN apt-get install -y \
       libc6-dev-i386 \
       libpq-dev \
       postgresql-9.6 \
-      postgresql-server-dev-all \
+      postgresql-server-dev-9.6 \
       libgit2-dev
 RUN pg_createcluster -p 5433 9.6 my_cluster
 

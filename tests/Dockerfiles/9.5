@@ -9,7 +9,7 @@ RUN apt-get update -qq && \
       libc6-dev-i386 \
       libpq-dev \
       postgresql-9.5 \
-      postgresql-server-dev-all \
+      postgresql-server-dev-9.5 \
       libgit2-dev
 RUN pg_createcluster -p 5433 9.5 my_cluster
 
