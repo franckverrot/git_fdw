@@ -10,8 +10,6 @@ RUN apt-get update -qq && \
       libpq-dev \
       postgresql-9.5 \
       postgresql-server-dev-all \
-      rake \
-      redis-server \
       libgit2-dev
 RUN pg_createcluster -p 5433 9.5 my_cluster
 
