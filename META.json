@@ -1,28 +1,30 @@
 {
-   "name": "git_fdw",
-   "abstract": "PostgreSQL Git Foreign Data Wrapper",
-   "description": "PostgreSQL Git Foreign Data Wrapper",
-   "version": "1.0.0",
-   "maintainer": [
-      "Franck Verrot <franck@verrot.fr>"
-   ],
-   "license": "mit",
-   "resources": {
-      "bugtracker": {
-         "web": "http://github.com/franckverrot/git_fdw/issues/"
-      },
-      "repository": {
-        "url":  "git://github.com/franckverrot/git_fdw.git",
-        "web":  "http://github.com/franckverrot/git_fdw",
-        "type": "git"
-      }
-   },
-   "meta-spec": {
-      "version": "1.0.0",
-      "url": "http://pgxn.org/meta/spec.txt"
-   },
-   "tags": [
-      "git",
-      "fdw"
-   ]
+  "name": "git_fdw",
+  "abstract": "PostgreSQL Git Foreign Data Wrapper",
+  "description": "PostgreSQL Git Foreign Data Wrapper",
+  "version": "1.0.0",
+  "maintainer": [
+     "Franck Verrot <franck@verrot.fr>"
+  ],
+  "license": "mit",
+  "resources": {
+     "bugtracker": {
+        "web": "http://github.com/franckverrot/git_fdw/issues/"
+     },
+     "repository": {
+       "url":  "git://github.com/franckverrot/git_fdw.git",
+       "web":  "http://github.com/franckverrot/git_fdw",
+       "type": "git"
+     }
+  },
+  "meta-spec": {
+     "version": "1.0.0",
+     "url": "http://pgxn.org/meta/spec.txt"
+  },
+  "tags": [
+     "git",
+     "fdw"
+  ],
+  "provides": {
+  }
 }

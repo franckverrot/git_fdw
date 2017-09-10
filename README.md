@@ -9,9 +9,18 @@ It is making use of [`libgit2`](libgit2.github.com).
 ### Prerequisites
 
 * libgit2-dev
+* PostgreSQL 9.4+
 
 
-### Setup
+### Building the extension
+
+#### With PGXN
+
+Simply run
+
+    pgxn install git_fdw
+
+#### From source
 
 Building git\_fdw is as simple as
 
@@ -21,6 +30,8 @@ and installing it only requires oneself to
 
     make install
 
+
+### Configuring the Foreign Data Wrapper
 
 Now you can start setting up your environment to access git repositories:
 
