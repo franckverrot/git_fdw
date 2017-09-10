@@ -12,6 +12,7 @@ script:
   - docker run franckverrot/git_fdw tests/run.sh $PG_VERSION
 
 env:
+  - PG_VERSION=9.4
   - PG_VERSION=9.5
   - PG_VERSION=9.6
   - PG_VERSION=10

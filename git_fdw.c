@@ -47,7 +47,7 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
-    ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan);
+    ForeignPath *best_path, List *tlist, List *scan_clauses);
 static void gitBeginForeignScan(ForeignScanState *node, int eflags);
 static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
@@ -231,20 +231,34 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
       total_cost,
       NIL,    /* no pathkeys */
       NULL,    /* no outer rel either */
+#if PG_VERSION_NUM >= 90500
       NULL,    /* no extra plan */
+#endif
       coptions);
 
   add_path(baserel, path);
 }
 
-static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan) {
+static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
   ForeignScan *scan;
   Index scan_relid = baserel->relid;
   scan_clauses = extract_actual_clauses(scan_clauses, false);
 
   best_path->fdw_private = baserel->fdw_private;
 
-  scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private, NIL, NIL, NULL); // Assuming outer_plan is null
+
+  scan = make_foreignscan(
+      tlist,
+      scan_clauses,
+      scan_relid,
+      NIL,
+      best_path->fdw_private
+#if PG_VERSION_NUM >= 90500
+      , NIL
+      , NIL
+      , NULL
+#endif
+      ); // Assuming outer_plan is null
 
   repository_path   = ((GitFdwPlanState*)scan->fdw_private)->path;
   repository_branch = ((GitFdwPlanState*)scan->fdw_private)->branch;
