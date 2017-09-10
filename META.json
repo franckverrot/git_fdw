@@ -2,7 +2,7 @@
   "name": "git_fdw",
   "abstract": "PostgreSQL Git Foreign Data Wrapper",
   "description": "PostgreSQL Git Foreign Data Wrapper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "maintainer": [
      "Franck Verrot <franck@verrot.fr>"
   ],
@@ -18,7 +18,7 @@
      }
   },
   "meta-spec": {
-     "version": "1.0.0",
+     "version": "1.0.1",
      "url": "http://pgxn.org/meta/spec.txt"
   },
   "tags": [
@@ -26,5 +26,11 @@
      "fdw"
   ],
   "provides": {
+    "git_fdw": {
+      "abstract": "git_fdw is a Git Foreign Data Wrapper for PostgreSQL written in C",
+      "file": "git_fdw--1.0.sql",
+      "docfile": "README.md",
+      "version": "1.0.1"
+    }
   }
 }
