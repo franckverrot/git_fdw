@@ -40,6 +40,10 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 #define POSTGRES_TO_UNIX_EPOCH_USECS (POSTGRES_TO_UNIX_EPOCH_DAYS * USECS_PER_DAY)
 #define DEFAULT_BRANCH "master"
 
+/* 1 byte for the prefix, another one for the last NULL byte */
+#define PADDING (1 + 1)
+#define SHA1_LENGTH 40
+
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
@@ -284,7 +288,7 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
       return;
     }
 
-    if(fread(head_rev, 40, 1, head_fileptr) != 1){
+    if(fread(head_rev, SHA1_LENGTH, 1, head_fileptr) != 1){
       elog(ERROR, "Error reading from '%s'\n", head_filepath);
       fclose(head_fileptr);
       return;
@@ -311,14 +315,20 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
   git_oid oid;
   git_commit *commit;
-  int position, padding;
+  int position;
+
+  /* libgit's output */
   const char          *commit_message;
   const git_signature *commit_author;
   const git_oid       *commit_sha1;
-  char                *commit_id;
-  char                *commit_msg;
-  char                *author_name;
-  char                *author_email;
+
+  /* input data that will get converted to PG data structures */
+  char  *formatted_commit_id;
+  char  *formatted_commit_msg;
+  char  *formatted_author_name;
+  char  *formatted_author_email;
+
+  /* PG data structures */
   Datum sha1, message, name, email, date;
 
   ExecClearTuple(slot);
@@ -333,24 +343,26 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     commit_author  = git_commit_committer(commit);
     commit_sha1    = git_commit_id(commit);
 
-    padding = 1 /* prefix */ + 1 /* 0 */;
-    commit_id    = (char*)palloc(40  + padding);
-    commit_msg   = (char*)palloc(strlen(commit_message) + padding);
-    author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + padding)));
-    author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + padding)));
+    formatted_commit_id    = (char*)palloc(SHA1_LENGTH  + PADDING);
+    formatted_commit_msg   = (char*)palloc(strlen(commit_message) + PADDING);
+    formatted_author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + PADDING)));
+    formatted_author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + PADDING)));
 
-    git_oid_fmt(commit_id + 1, commit_sha1);
-    commit_id[0] = 's';
-    sha1 = CStringGetDatum(commit_id);
+    /* Add PG prefix and ensure it will be NULL-terminated */
+    formatted_commit_id[0]    = 's';
+    formatted_commit_id[SHA1_LENGTH+1] = 0;
+    git_oid_fmt(formatted_commit_id + 1, commit_sha1);
 
-    sprintf(commit_msg, "s%s", commit_message);
-    message = CStringGetDatum(commit_msg);
+    sha1 = CStringGetDatum(formatted_commit_id);
 
-    sprintf(author_name, "s%s", commit_author->name);
-    name = CStringGetDatum(author_name);
+    sprintf(formatted_commit_msg, "s%s", commit_message);
+    message = CStringGetDatum(formatted_commit_msg);
 
-    sprintf(author_email, "s%s", commit_author->email);
-    email = CStringGetDatum(author_email);
+    sprintf(formatted_author_name, "s%s", commit_author->name);
+    name = CStringGetDatum(formatted_author_name);
+
+    sprintf(formatted_author_email, "s%s", commit_author->email);
+    email = CStringGetDatum(formatted_author_email);
 
     date = (commit_author->when.time * 1000000L) - POSTGRES_TO_UNIX_EPOCH_USECS;
 
