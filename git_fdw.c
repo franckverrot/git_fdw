@@ -223,6 +223,9 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
    * it will be propagated into the fdw_private list of the Plan node.
    */
   path = (Path*)create_foreignscan_path(root, baserel,
+#if PG_VERSION_NUM >= 90600
+      NULL, /* default pathtarget */
+#endif
       baserel->rows,
       startup_cost,
       total_cost,

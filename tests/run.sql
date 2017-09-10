@@ -1,3 +1,4 @@
+SHOW server_version_num;
 SELECT
   name,
   message,

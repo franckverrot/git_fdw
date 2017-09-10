@@ -2,15 +2,17 @@
 source $(dirname $0)/helpers.sh
 
 # Create and start services
-pg_ctlcluster 9.5 my_cluster start
-redis-server --daemonize yes
+pg_ctlcluster $1 my_cluster start
+
+# Clone git_fdw's repo
+git clone https://github.com/franckverrot/git_fdw.git /git_fdw/repo
 
 # Setup Postgres
 exec_psql /git_fdw/tests/setup.sql
 exec_psql /git_fdw/tests/run.sql
 
 # Execute tests
-expected_output=$(cat tests/fixtures/expected_output)
+expected_output=$(cat tests/expected_outputs/$1)
 actual_output=$(su -c "$PSQL -txqAF, -R\; < /git_fdw/tests/run.sql" - postgres)
 
 # Assert results

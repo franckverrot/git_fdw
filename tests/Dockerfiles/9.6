@@ -1,0 +1,26 @@
+FROM ubuntu:latest
+MAINTAINER Franck Verrot <franck@verrot.fr>
+
+RUN apt-get update -qq && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main"
+RUN apt-get install -y wget
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN apt-get update -qq
+RUN apt-get install -y \
+      build-essential \
+      flex bison \
+      git \
+      libc6-dev-i386 \
+      libpq-dev \
+      postgresql-9.6 \
+      postgresql-server-dev-all \
+      rake \
+      redis-server \
+      libgit2-dev
+RUN pg_createcluster -p 5433 9.6 my_cluster
+
+WORKDIR /git_fdw
+ADD . /git_fdw
+
+RUN make install
