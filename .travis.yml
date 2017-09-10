@@ -1,0 +1,12 @@
+sudo: required
+
+language: ruby
+
+services:
+    - docker
+
+before_install:
+    - docker build -t franckverrot/git_fdw .
+
+script:
+    - docker run franckverrot/git_fdw tests/run.sh

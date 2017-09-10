@@ -43,7 +43,7 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
-    ForeignPath *best_path, List *tlist, List *scan_clauses);
+    ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan);
 static void gitBeginForeignScan(ForeignScanState *node, int eflags);
 static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
@@ -205,10 +205,10 @@ static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid for
 
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid) {
   GitFdwPlanState *fdw_private = (GitFdwPlanState *) baserel->fdw_private;
-  Cost    startup_cost;
-  Cost    total_cost;
-  // List     *columns;
-  List     *coptions = NIL;
+  Cost startup_cost;
+  Cost total_cost;
+  List *coptions = NIL;
+  Path *path;
 
   /* Estimate costs */
   estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
@@ -218,25 +218,27 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
    * fdw_private list of the path to carry the convert_selectively option;
    * it will be propagated into the fdw_private list of the Plan node.
    */
-  Path * path = (Path*)create_foreignscan_path(root, baserel,
+  path = (Path*)create_foreignscan_path(root, baserel,
       baserel->rows,
       startup_cost,
       total_cost,
       NIL,    /* no pathkeys */
       NULL,    /* no outer rel either */
+      NULL,    /* no extra plan */
       coptions);
 
   add_path(baserel, path);
 }
 
-static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
+static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses, Plan *outer_plan) {
+  ForeignScan *scan;
   Index scan_relid = baserel->relid;
   scan_clauses = extract_actual_clauses(scan_clauses, false);
 
   best_path->fdw_private = baserel->fdw_private;
-  ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private);
 
-  //ForeignScan * scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, baserel->fdw_private);
+  scan = make_foreignscan(tlist, scan_clauses, scan_relid, NIL, best_path->fdw_private, NIL, NIL, NULL); // Assuming outer_plan is null
+
   repository_path   = ((GitFdwPlanState*)scan->fdw_private)->path;
   repository_branch = ((GitFdwPlanState*)scan->fdw_private)->branch;
   return scan;
@@ -246,10 +248,13 @@ static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es) {
 }
 
 static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
-  git_libgit2_init();
-  // ForeignScan *plan = (ForeignScan *)node->ss.ps.plan;
   GitFdwExecutionState *festate;
   git_oid oid;
+  char head_filepath[512];
+  FILE *head_fileptr;
+  char head_rev[41];
+
+  git_libgit2_init();
 
   festate = (GitFdwExecutionState *) palloc(sizeof(GitFdwExecutionState));
   festate->path   = repository_path;
@@ -267,10 +272,6 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
     }
 
     // Read HEAD on specified branch (DEFAULT_BRANCH by default)
-    char head_filepath[512];
-    FILE *head_fileptr;
-    char head_rev[41];
-
     strcpy(head_filepath, festate->path);
     if(strrchr(festate->path, '/') != (festate->path+strlen(festate->path)))
       strcat(head_filepath, "/refs/heads/");
@@ -300,7 +301,7 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
     git_revwalk_sorting(festate->walker, GIT_SORT_TOPOLOGICAL);
     git_revwalk_push(festate->walker, &oid);
   } else {
-    ereport(WARNING, (errcode(WARNING), errmsg("Repo is already initialized %p", festate->repo), errdetail("")));
+    ereport(WARNING, (errcode(WARNING), errmsg("Repo is already initialized %p", festate->repo), errdetail("No details.")));
   }
 }
 
@@ -310,13 +311,17 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
   git_oid oid;
   git_commit *commit;
-  int position;
-
-  ExecClearTuple(slot);
-
+  int position, padding;
   const char          *commit_message;
   const git_signature *commit_author;
   const git_oid       *commit_sha1;
+  char                *commit_id;
+  char                *commit_msg;
+  char                *author_name;
+  char                *author_email;
+  Datum sha1, message, name, email, date;
+
+  ExecClearTuple(slot);
 
   if (git_revwalk_next(&oid, festate->walker) == GIT_OK) {
     if(git_commit_lookup(&commit, festate->repo, &oid)) {
@@ -328,26 +333,26 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     commit_author  = git_commit_committer(commit);
     commit_sha1    = git_commit_id(commit);
 
-    int padding = 1 /* prefix */ + 1 /* 0 */;
-    char * commit_id    = (char*)palloc(40  + padding);
-    char * commit_msg   = (char*)palloc(strlen(commit_message) + padding);
-    char * author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + padding)));
-    char * author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + padding)));
+    padding = 1 /* prefix */ + 1 /* 0 */;
+    commit_id    = (char*)palloc(40  + padding);
+    commit_msg   = (char*)palloc(strlen(commit_message) + padding);
+    author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + padding)));
+    author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + padding)));
 
     git_oid_fmt(commit_id + 1, commit_sha1);
     commit_id[0] = 's';
-    Datum sha1 = CStringGetDatum(commit_id);
+    sha1 = CStringGetDatum(commit_id);
 
     sprintf(commit_msg, "s%s", commit_message);
-    Datum message = CStringGetDatum(commit_msg);
+    message = CStringGetDatum(commit_msg);
 
     sprintf(author_name, "s%s", commit_author->name);
-    Datum name = CStringGetDatum(author_name);
+    name = CStringGetDatum(author_name);
 
     sprintf(author_email, "s%s", commit_author->email);
-    Datum email = CStringGetDatum(author_email);
+    email = CStringGetDatum(author_email);
 
-    Datum date = (commit_author->when.time * 1000000L) - POSTGRES_TO_UNIX_EPOCH_USECS;
+    date = (commit_author->when.time * 1000000L) - POSTGRES_TO_UNIX_EPOCH_USECS;
 
     git_commit_free(commit);
 
