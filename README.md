@@ -97,11 +97,6 @@ The possible options are:
 * `path`: The path of the git repository;
 * `branch`: The branch to be used.
 
-## TODO
-
-* [ ] Publish the extension on [PGXN](http://pgxn.org/)
-
-
 ## Note on Patches/Pull Requests
 
 * Fork the project.
@@ -112,4 +107,4 @@ The possible options are:
 
 ## LICENSE
 
-Copyright (c) 2014-2015 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
+Copyright (c) 2014-2017 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
