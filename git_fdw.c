@@ -332,6 +332,11 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
   git_oid oid;
   git_commit *commit;
+  git_tree *commit_tree;
+  git_commit *commit_parent;
+  git_tree *commit_parent_tree;
+  git_diff *commit_diff;
+  git_diff_stats *commit_diff_stats;
   int position;
 
   /* libgit's output */
@@ -346,7 +351,7 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
   char  *formatted_author_email;
 
   /* PG data structures */
-  Datum sha1, message, name, email, date;
+  Datum sha1, message, name, email, date, insertions = 0, deletions = 0, files_changed = 0;
 
   ExecClearTuple(slot);
 
@@ -359,6 +364,21 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     commit_message = git_commit_message(commit);
     commit_author  = git_commit_committer(commit);
     commit_sha1    = git_commit_id(commit);
+
+    if( git_commit_parent(&commit_parent, commit, 0) == GIT_OK &&
+        git_commit_tree(&commit_tree, commit) == GIT_OK &&
+        git_commit_tree(&commit_parent_tree, commit_parent) == GIT_OK &&
+        git_diff_tree_to_tree(&commit_diff, festate->repo, commit_parent_tree, commit_tree, NULL) == GIT_OK &&
+        git_diff_get_stats(&commit_diff_stats, commit_diff) == GIT_OK
+      ) {
+      insertions = git_diff_stats_insertions(commit_diff_stats);
+      deletions = git_diff_stats_deletions(commit_diff_stats);
+      files_changed = git_diff_stats_files_changed(commit_diff_stats);
+
+      git_diff_stats_free(commit_diff_stats);
+      git_diff_free(commit_diff);
+      git_commit_free(commit_parent);
+    }
 
     formatted_commit_id    = (char*)palloc(SHA1_LENGTH  + PADDING);
     formatted_commit_msg   = (char*)palloc(strlen(commit_message) + PADDING);
@@ -386,12 +406,15 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     git_commit_free(commit);
 
     slot->tts_isempty = false;
-    slot->tts_nvalid = 5; // 5 columns = id, message, name, email, timestamp
+    slot->tts_nvalid = 8; // 8 columns = id, message, name, email, timestamp, insertions, deletions, files_changed
 
     slot->tts_isnull = (bool *)palloc(sizeof(bool) * slot->tts_nvalid);
     slot->tts_values = (Datum *)palloc(sizeof(Datum) * slot->tts_nvalid);
 
     position = 0;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
+    slot->tts_isnull[position++] = false;
     slot->tts_isnull[position++] = false;
     slot->tts_isnull[position++] = false;
     slot->tts_isnull[position++] = false;
@@ -404,6 +427,9 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     slot->tts_values[position++] = name;
     slot->tts_values[position++] = email;
     slot->tts_values[position++] = date;
+    slot->tts_values[position++] = insertions;
+    slot->tts_values[position++] = deletions;
+    slot->tts_values[position++] = files_changed;
 
     ExecStoreVirtualTuple(slot);
     return slot;
