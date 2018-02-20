@@ -337,6 +337,7 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
   git_tree *commit_parent_tree;
   git_diff *commit_diff;
   git_diff_stats *commit_diff_stats;
+  bool commit_parent_needs_free = false;
   int position;
 
   /* libgit's output */
@@ -365,9 +366,22 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     commit_author  = git_commit_committer(commit);
     commit_sha1    = git_commit_id(commit);
 
-    if( git_commit_parent(&commit_parent, commit, 0) == GIT_OK &&
-        git_commit_tree(&commit_tree, commit) == GIT_OK &&
-        git_commit_tree(&commit_parent_tree, commit_parent) == GIT_OK &&
+    if(git_commit_parent(&commit_parent, commit, 0) == GIT_OK) {
+      commit_parent_needs_free = true;
+      git_commit_tree(&commit_parent_tree, commit_parent);
+
+    } else {
+      /* How to Get diff of the first commit?
+       * see https://stackoverflow.com/questions/40883798/how-to-get-git-diff-of-the-first-commit
+      */
+      git_oid oid_tree_empty;
+
+      if( git_oid_fromstr(&oid_tree_empty, "4b825dc642cb6eb9a060e54bf8d69288fbee4904") == GIT_OK ){
+        git_tree_lookup(&commit_parent_tree, festate->repo, &oid_tree_empty);
+      }      
+    }
+
+    if( git_commit_tree(&commit_tree, commit) == GIT_OK &&
         git_diff_tree_to_tree(&commit_diff, festate->repo, commit_parent_tree, commit_tree, NULL) == GIT_OK &&
         git_diff_get_stats(&commit_diff_stats, commit_diff) == GIT_OK
       ) {
@@ -377,7 +391,10 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
       git_diff_stats_free(commit_diff_stats);
       git_diff_free(commit_diff);
-      git_commit_free(commit_parent);
+
+      if(commit_parent_needs_free){
+        git_commit_free(commit_parent);
+      }
     }
 
     formatted_commit_id    = (char*)palloc(SHA1_LENGTH  + PADDING);
