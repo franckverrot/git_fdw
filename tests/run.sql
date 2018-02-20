@@ -2,7 +2,10 @@ SHOW server_version_num;
 SELECT
   name,
   message,
-  sha1
+  sha1,
+  insertions,
+  deletions,
+  files_changed
 FROM
   repository
 WHERE

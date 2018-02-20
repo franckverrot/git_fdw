@@ -51,7 +51,10 @@ Now you can start setting up your environment to access git repositories:
             message     text,
             name        text,
             email       text,
-            commit_date timestamp with time zone
+            commit_date timestamp with time zone,
+            insertions      int,
+            deletions       int,
+            files_changed   int
         )
         SERVER git_fdw_server
         OPTIONS (
