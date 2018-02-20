@@ -47,11 +47,14 @@ Now you can start setting up your environment to access git repositories:
 
     franck=# CREATE FOREIGN TABLE
         rails_repository (
-            sha1        text,
-            message     text,
-            name        text,
-            email       text,
-            commit_date timestamp with time zone
+            sha1          text,
+            message       text,
+            name          text,
+            email         text,
+            commit_date   timestamp with time zone,
+            insertions    int,
+            deletions     int,
+            files_changed int
         )
         SERVER git_fdw_server
         OPTIONS (
