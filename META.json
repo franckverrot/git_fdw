@@ -2,7 +2,7 @@
   "name": "git_fdw",
   "abstract": "PostgreSQL Git Foreign Data Wrapper",
   "description": "PostgreSQL Git Foreign Data Wrapper",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "maintainer": [
      "Franck Verrot <franck@verrot.fr>"
   ],
@@ -28,9 +28,9 @@
   "provides": {
     "git_fdw": {
       "abstract": "git_fdw is a Git Foreign Data Wrapper for PostgreSQL written in C",
-      "file": "git_fdw--1.0.2.sql",
+      "file": "git_fdw--1.1.0.sql",
       "docfile": "README.md",
-      "version": "1.0.2"
+      "version": "1.1.0"
     }
   },
   "prereqs": {
