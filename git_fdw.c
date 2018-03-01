@@ -288,7 +288,11 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
   if(festate->repo == NULL) {
     int repo_opened = -1;
     if((repo_opened = git_repository_open(&festate->repo, festate->path)) != GIT_OK){
-      elog(ERROR,"Failed opening repository: '%s' %d", festate->path, repo_opened);
+      const git_error *err = giterr_last();
+      ereport(ERROR,
+          (errcode(ERRCODE_FDW_ERROR),
+           errmsg("Failed opening repository: '%s'", festate->path),
+           errhint("libgit2 returned error code %d: %s.", repo_opened, err->message)));
       return;
     }
 
