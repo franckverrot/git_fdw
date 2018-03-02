@@ -38,7 +38,7 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 
 #define POSTGRES_TO_UNIX_EPOCH_DAYS (POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE)
 #define POSTGRES_TO_UNIX_EPOCH_USECS (POSTGRES_TO_UNIX_EPOCH_DAYS * USECS_PER_DAY)
-#define DEFAULT_BRANCH "master"
+#define DEFAULT_BRANCH "refs/heads/master"
 
 /* 1 byte for the prefix, another one for the last NULL byte */
 #define PADDING (1 + 1)
@@ -270,10 +270,12 @@ static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es) {
 
 static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
   GitFdwExecutionState *festate;
-  git_oid oid;
-  char head_filepath[512];
-  FILE *head_fileptr;
-  char head_rev[41];
+  git_oid oid = {0};
+  git_remote *remote = NULL;
+  int error;
+  const git_remote_head **refs;
+  size_t refs_len, i;
+  git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
 
   git_libgit2_init();
 
@@ -292,36 +294,48 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
       ereport(ERROR,
           (errcode(ERRCODE_FDW_ERROR),
            errmsg("Failed opening repository: '%s'", festate->path),
-           errhint("libgit2 returned error code %d: %s.", repo_opened, err->message)));
+           errdetail("libgit2 returned error code %d: %s.", repo_opened, err->message)));
       return;
     }
 
-    // Read HEAD on specified branch (DEFAULT_BRANCH by default)
-    strcpy(head_filepath, festate->path);
-    if(strrchr(festate->path, '/') != (festate->path+strlen(festate->path)))
-      strcat(head_filepath, "/refs/heads/");
-    else
-      strcat(head_filepath, "refs/heads/");
-    strcat(head_filepath, festate->branch);
-
-    if((head_fileptr = fopen(head_filepath, "r")) == NULL){
-      elog(ERROR, "Error opening '%s'\n", head_filepath);
-      return;
+    error = git_remote_lookup(&remote, festate->repo, festate->path);
+    if (error < 0) {
+      error = git_remote_create_anonymous(&remote, festate->repo, festate->path);
+      if (error < 0) {
+        ereport(ERROR, (errcode(ERRCODE_FDW_ERROR),
+              errmsg("Call to git_remote_create_anonymous failed"),
+              errdetail("Error code: %d", error)));
+      }
     }
 
-    if(fread(head_rev, SHA1_LENGTH, 1, head_fileptr) != 1){
-      elog(ERROR, "Error reading from '%s'\n", head_filepath);
-      fclose(head_fileptr);
-      return;
+    error = git_remote_connect(remote, GIT_DIRECTION_FETCH, &callbacks, NULL);
+    if (error < 0) {
+      ereport(ERROR, (errcode(ERRCODE_FDW_ERROR),
+            errmsg("Call to git_remote_connect failed"),
+            errdetail("Error code: %d", error)));
     }
 
-    fclose(head_fileptr);
-
-    if(git_oid_fromstr(&oid, head_rev) != GIT_OK){
-      elog(ERROR,"Invalid git object: '%s'", head_rev);
-      return;
+    error = git_remote_ls(&refs, &refs_len, remote);
+    if (error < 0) {
+      ereport(ERROR, (errcode(ERRCODE_FDW_ERROR),
+            errmsg("Call to git_remote_ls failed"),
+            errdetail("Error code: %d", error)));
     }
 
+    for (i = 0; i < refs_len; i++) {
+      if(0 == strcmp(refs[i]->name, festate->branch)) {
+        oid = refs[i]->oid;
+        break;
+      }
+    }
+
+    if(git_oid_iszero(&oid)) {
+      ereport(ERROR,
+          (errcode(ERRCODE_FDW_ERROR),
+           errmsg("Couldn't find branch %s", festate->branch)));
+    }
+
+    git_remote_free(remote);
     git_revwalk_new(&(festate->walker), festate->repo);
     git_revwalk_sorting(festate->walker, GIT_SORT_TOPOLOGICAL);
     git_revwalk_push(festate->walker, &oid);

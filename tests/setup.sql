@@ -14,6 +14,6 @@ CREATE FOREIGN TABLE
   )
 SERVER git_fdw_server
 OPTIONS (
-  path '/git_fdw/repo/.git',
-  branch 'master'
+  path '/git_fdw/repo.git',
+  branch 'refs/heads/master'
 );

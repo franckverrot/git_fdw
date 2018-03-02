@@ -5,7 +5,7 @@ source $(dirname $0)/helpers.sh
 pg_ctlcluster $1 my_cluster start
 
 # Clone git_fdw's repo
-git clone https://github.com/franckverrot/git_fdw.git /git_fdw/repo
+git clone --bare https://github.com/franckverrot/git_fdw.git /git_fdw/repo.git
 
 # Setup Postgres
 exec_psql /git_fdw/tests/setup.sql

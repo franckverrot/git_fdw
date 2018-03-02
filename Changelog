@@ -8,6 +8,8 @@
 
 * Add support for new columns and rework others
 * Add a foreign-table-level option for selecting the target branch
+* Add support for lines added/deleted/files changed
+* Add support for bare repositories
 
 # Release 1.0.0
 
