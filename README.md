@@ -8,7 +8,7 @@ It is making use of [`libgit2`](libgit2.github.com).
 
 ### Prerequisites
 
-* libgit2-dev
+* libgit2-dev (supports up to v0.27)
 * PostgreSQL 9.4+
 
 

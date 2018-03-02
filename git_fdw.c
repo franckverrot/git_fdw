@@ -308,7 +308,15 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
       }
     }
 
-    error = git_remote_connect(remote, GIT_DIRECTION_FETCH, &callbacks, NULL);
+    error = git_remote_connect(
+        remote,
+        GIT_DIRECTION_FETCH,
+        &callbacks,
+        NULL
+#if LIBGIT2_VER_MINOR > 24
+        , NULL
+#endif
+        );
     if (error < 0) {
       ereport(ERROR, (errcode(ERRCODE_FDW_ERROR),
             errmsg("Call to git_remote_connect failed"),
