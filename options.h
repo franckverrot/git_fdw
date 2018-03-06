@@ -7,5 +7,6 @@ struct GitFdwOption {
 static const struct GitFdwOption valid_options[] = {
 	{"path",   ForeignTableRelationId},
 	{"branch", ForeignTableRelationId},
+	{"git_search_path", ForeignTableRelationId},
 	{NULL,     InvalidOid}
 };

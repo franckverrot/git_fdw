@@ -95,10 +95,13 @@ There are no options that can be passed to a git\_fdw server.
 
 ### Foreign Table
 
-The possible options are:
+One must configure the foreign tables appropriately.
 
-* `path`: The path of the git repository;
-* `branch`: The branch to be used.
+Here are the options:
+
+  * (Required) `path`: The path of the git repository;
+  * (Required) `branch`: The branch to be used;
+  * (Optional) `git_search_path`: Sometimes libgit2 has to be told where to find your configuration. See #10 for details.
 
 ## Note on Patches/Pull Requests
 

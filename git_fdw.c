@@ -82,6 +82,7 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
   Oid      catalog = PG_GETARG_OID(1);
   char     *path   = NULL;
   char     *branch = NULL;
+  char     *git_search_path = NULL;
   List     *other_options = NIL;
   ListCell   *cell;
 
@@ -105,7 +106,7 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
               opt->optname);
       }
 
-      ereport(ERROR,
+      ereport(WARNING,
           (errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
            errmsg("invalid option \"%s\"", def->defname),
            buf.len > 0
@@ -130,6 +131,14 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
              errmsg("conflicting or redundant options")));
       branch = defGetString(def);
     }
+    else if (strcmp(def->defname, "git_search_path") == 0)
+    {
+      if (git_search_path)
+        ereport(ERROR,
+            (errcode(ERRCODE_SYNTAX_ERROR),
+             errmsg("conflicting or redundant options")));
+      git_search_path = defGetString(def);
+    }
     else
       other_options = lappend(other_options, def);
   }
@@ -145,6 +154,7 @@ Datum git_fdw_validator(PG_FUNCTION_ARGS) {
 // TODO:  Find where this variable should go (Plan or Path?)
 char * repository_path;
 char * repository_branch;
+char * repository_git_search_path;
 
 static bool is_valid_option(const char *option, Oid context) {
   const struct GitFdwOption *opt;
@@ -160,29 +170,27 @@ static bool is_valid_option(const char *option, Oid context) {
 static void gitGetOptions(Oid foreigntableid, GitFdwPlanState *state, List **other_options) {
   ForeignTable *table;
   List     *options;
-  ListCell   *lc,
-             *prev;
+  ListCell   *lc;
 
   table = GetForeignTable(foreigntableid);
 
   options = NIL;
   options = list_concat(options, table->options);
 
-  prev = NULL;
   foreach(lc, options) {
     DefElem *def = (DefElem *) lfirst(lc);
 
     if (strcmp(def->defname, "path") == 0) {
       state->path = defGetString(def);
-      options = list_delete_cell(options, lc, prev);
     }
 
     if (strcmp(def->defname, "branch") == 0) {
       state->branch = defGetString(def);
-      options = list_delete_cell(options, lc, prev);
     }
 
-    prev = lc;
+    if (strcmp(def->defname, "git_search_path") == 0) {
+      state->git_search_path = defGetString(def);
+    }
   }
 
   if (state->path == NULL) {
@@ -260,8 +268,9 @@ static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, O
 #endif
       ); // Assuming outer_plan is null
 
-  repository_path   = ((GitFdwPlanState*)scan->fdw_private)->path;
-  repository_branch = ((GitFdwPlanState*)scan->fdw_private)->branch;
+  repository_path            = ((GitFdwPlanState*)scan->fdw_private)->path;
+  repository_branch          = ((GitFdwPlanState*)scan->fdw_private)->branch;
+  repository_git_search_path = ((GitFdwPlanState*)scan->fdw_private)->git_search_path;
   return scan;
 }
 
@@ -280,12 +289,21 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags) {
   git_libgit2_init();
 
   festate = (GitFdwExecutionState *) palloc(sizeof(GitFdwExecutionState));
-  festate->path   = repository_path;
-  festate->branch = repository_branch;
-  festate->repo   = NULL;
-  festate->walker = NULL;
+  festate->path            = repository_path;
+  festate->branch          = repository_branch;
+  festate->git_search_path = repository_git_search_path;
+  festate->repo            = NULL;
+  festate->walker          = NULL;
 
   node->fdw_state = (void *) festate;
+
+  if(festate->git_search_path != NULL){
+    git_libgit2_opts(
+        GIT_OPT_SET_SEARCH_PATH,
+        GIT_CONFIG_LEVEL_GLOBAL,
+        festate->git_search_path
+        );
+  }
 
   if(festate->repo == NULL) {
     int repo_opened = -1;
