@@ -1,4 +1,10 @@
-# Unreleased (2.0.0)
+# Release 2.1.0
+
+## Updates
+
+* Add support for a custom git search path
+
+# Release 2.0.0
 
 ## Breaking changes
 
@@ -11,7 +17,6 @@
 * Add support for lines added/deleted/files changed
 * Add support for bare repositories
 * Add support for libgit2 up to v0.27
-* Add support for a custom git search path
 
 # Release 1.0.0
 
