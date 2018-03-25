@@ -53,6 +53,9 @@ static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
 static void fileReScanForeignScan(ForeignScanState *node);
 static void gitEndForeignScan(ForeignScanState *node);
+#if (PG_VERSION_NUM >= 90500)
+static List *gitImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid);
+#endif
 
 static bool is_valid_option(const char *option, Oid context);
 static void gitGetOptions(Oid foreigntableid, GitFdwPlanState *state, List **other_options);
@@ -73,6 +76,11 @@ Datum git_fdw_handler(PG_FUNCTION_ARGS) {
   fdwroutine->ExplainForeignScan = gitExplainForeignScan;
 
   fdwroutine->ReScanForeignScan  = fileReScanForeignScan;
+
+#if (PG_VERSION_NUM >= 90500)
+  /* support for IMPORT FOREIGN SCHEMA */
+  fdwroutine->ImportForeignSchema = gitImportForeignSchema;
+#endif
 
   PG_RETURN_POINTER(fdwroutine);
 }
@@ -529,3 +537,75 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel, GitFdwPlanSta
   run_cost += cpu_per_tuple * ntuples;
   *total_cost = *startup_cost + run_cost;
 }
+
+
+#if (PG_VERSION_NUM >= 90500)
+static List *gitImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
+{
+  ListCell *lc;
+  List     *commands = NIL;
+  char     *path,
+           *branch,
+           *git_search_path = "",
+           *prefix = "";
+  StringInfoData cft_stmt;
+
+  if (strcmp(stmt->remote_schema, "git_data") != 0)
+  {
+    ereport(ERROR,
+        (errcode(ERRCODE_FDW_SCHEMA_NOT_FOUND),
+         errmsg("Foreign schema \"%s\" is invalid", stmt->remote_schema)
+        ));
+  }
+
+  foreach(lc, stmt->options)
+  {
+    DefElem    *def = (DefElem *) lfirst(lc);
+
+    if (strcmp(def->defname, "path") == 0)
+      path = defGetString(def);
+    else if (strcmp(def->defname, "branch") == 0)
+      branch = defGetString(def);
+    else if (strcmp(def->defname, "git_search_path") == 0)
+      git_search_path = defGetString(def);
+    else if (strcmp(def->defname, "prefix") == 0)
+      prefix = defGetString(def);
+    else
+      ereport(ERROR,
+          (errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+           errmsg("invalid option \"%s\"", def->defname)));
+  }
+
+  if((NULL == path) || (NULL == branch)) {
+    ereport(ERROR,
+        (errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+         errmsg("Please set both `path` and `branch`")));
+  }
+
+  initStringInfo(&cft_stmt);
+
+  appendStringInfo(&cft_stmt,
+      "CREATE FOREIGN TABLE %s.%srepository ("
+      "\n  sha1          text,"
+      "\n  message       text,"
+      "\n  name          text,"
+      "\n  email         text,"
+      "\n  commit_date   timestamp with time zone,"
+      "\n  insertions    int,"
+      "\n  deletions     int,"
+      "\n  files_changed int"
+      "\n)"
+      "\nSERVER %s"
+      "\nOPTIONS (path '%s',\n branch '%s',\n git_search_path '%s')",
+      stmt->local_schema,
+      prefix,
+      quote_identifier(stmt->server_name),
+      path,
+      branch,
+      git_search_path);
+
+  commands = lappend(commands, pstrdup(cft_stmt.data));
+  pfree(cft_stmt.data);
+  return commands;
+}
+#endif
