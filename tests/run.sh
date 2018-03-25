@@ -9,6 +9,7 @@ git clone --bare https://github.com/franckverrot/git_fdw.git /git_fdw/repo.git
 
 # Setup Postgres
 exec_psql /git_fdw/tests/setup.sql
+exec_psql /git_fdw/tests/setups/$1.sql
 exec_psql /git_fdw/tests/run.sql
 
 # Execute tests

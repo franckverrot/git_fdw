@@ -7,6 +7,6 @@ SELECT
   deletions,
   files_changed
 FROM
-  repository
+  git_repos.rails_repository
 WHERE
   sha1 like '4fc2faf9%'

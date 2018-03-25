@@ -10,6 +10,7 @@ It is making use of [`libgit2`](libgit2.github.com).
 
 * libgit2-dev (supports up to v0.27)
 * PostgreSQL 9.4+
+  * `IMPORT FOREIGN SCHEMA` doesn't exist with 9.4, please use `CREATE FOREIGN TABLE` instead.
 
 
 ### Building the extension
@@ -35,15 +36,28 @@ and installing it only requires oneself to
 
 Now you can start setting up your environment to access git repositories:
 
-    λ psql
-    psql (9.4.1)
-    Type "help" for help.
-
     franck=# CREATE EXTENSION git_fdw;
     CREATE EXTENSION
 
     franck=# CREATE SERVER git_fdw_server FOREIGN DATA WRAPPER git_fdw;
     CREATE SERVER
+
+
+With the support of `IMPORT FOREIGN SCHEMA` in PostgreSQL 9.5+:
+
+    franck=# IMPORT FOREIGN SCHEMA git_data
+             FROM SERVER git_fdw_server
+             INTO public
+             OPTIONS (
+                 path   '/git_fdw/repo.git',
+                 branch 'refs/heads/master',
+                 prefix 'rails_':
+             );
+
+`LIMIT TO` and `EXCEPT` are not supported.
+
+
+With PostgreSQL 9.4:
 
     franck=# CREATE FOREIGN TABLE
         rails_repository (
@@ -62,6 +76,7 @@ Now you can start setting up your environment to access git repositories:
             branch 'refs/heads/master'
         );
     CREATE FOREIGN TABLE
+
 
     franck=# SELECT message, name FROM rails_repository LIMIT 10;
                              message                          |          name
