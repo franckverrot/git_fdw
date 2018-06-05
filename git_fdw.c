@@ -52,8 +52,16 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
-static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
-    ForeignPath *best_path, List *tlist, List *scan_clauses);
+static ForeignScan *gitGetForeignPlan(PlannerInfo *root,
+					RelOptInfo *baserel,
+					Oid foreigntableid,
+					ForeignPath *best_path,
+					List *tlist,
+					List *scan_clauses
+#if (PG_VERSION_NUM >= 90500)
+					, Plan *outer_plan
+#endif
+					);
 static void gitBeginForeignScan(ForeignScanState *node, int eflags);
 static void gitExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static TupleTableSlot *gitIterateForeignScan(ForeignScanState *node);
@@ -261,7 +269,18 @@ static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
   add_path(baserel, path);
 }
 
-static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
+static ForeignScan *
+gitGetForeignPlan(PlannerInfo *root,
+				  RelOptInfo *baserel,
+				  Oid foreigntableid,
+				  ForeignPath *best_path,
+				  List *tlist,
+				  List *scan_clauses
+#if (PG_VERSION_NUM >= 90500)
+				  , Plan *outer_plan
+#endif
+				  )
+{
   ForeignScan *scan;
   Index scan_relid = baserel->relid;
   scan_clauses = extract_actual_clauses(scan_clauses, false);
@@ -278,9 +297,9 @@ static ForeignScan * gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, O
 #if PG_VERSION_NUM >= 90500
       , NIL
       , NIL
-      , NULL
+      , outer_plan
 #endif
-      ); // Assuming outer_plan is null
+      ); /* Not assuming outer_plan is null */
 
   repository_path            = ((GitFdwPlanState*)scan->fdw_private)->path;
   repository_branch          = ((GitFdwPlanState*)scan->fdw_private)->branch;
