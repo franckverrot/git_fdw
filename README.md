@@ -128,4 +128,4 @@ Here are the options:
 
 ## LICENSE
 
-Copyright (c) 2014-2017 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
+Copyright (c) 2014-2018 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
