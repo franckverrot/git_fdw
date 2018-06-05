@@ -44,6 +44,12 @@ PG_FUNCTION_INFO_V1(git_fdw_validator);
 #define PADDING (1 + 1)
 #define SHA1_LENGTH 40
 
+/* How to Get diff of the first commit?
+ * see https://stackoverflow.com/questions/40883798/how-to-get-git-diff-of-the-first-commit
+ */
+
+#define EMPTY_REPO_SHA1 "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 static void gitGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static void gitGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
 static ForeignScan *gitGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid,
@@ -423,12 +429,10 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
       git_commit_tree(&commit_parent_tree, commit_parent);
 
     } else {
-      /* How to Get diff of the first commit?
-       * see https://stackoverflow.com/questions/40883798/how-to-get-git-diff-of-the-first-commit
-      */
+      /* Get diff of the first commit. */
       git_oid oid_tree_empty;
 
-      if( git_oid_fromstr(&oid_tree_empty, "4b825dc642cb6eb9a060e54bf8d69288fbee4904") == GIT_OK ){
+      if (git_oid_fromstr(&oid_tree_empty, EMPTY_REPO_SHA1) == GIT_OK){
         git_tree_lookup(&commit_parent_tree, festate->repo, &oid_tree_empty);
       }
     }
