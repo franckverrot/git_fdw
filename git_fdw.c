@@ -424,9 +424,6 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
   /* input data that will get converted to PG data structures */
   char  *formatted_commit_id;
-  char  *formatted_commit_msg;
-  char  *formatted_author_name;
-  char  *formatted_author_email;
 
   /* PG data structures */
   Datum sha1, message, name, email, date, insertions = 0, deletions = 0, files_changed = 0;
@@ -474,26 +471,15 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
     git_tree_free(commit_tree);
     git_tree_free(commit_parent_tree);
 
-    formatted_commit_id    = (char*)palloc(SHA1_LENGTH  + PADDING);
-    formatted_commit_msg   = (char*)palloc(strlen(commit_message) + PADDING);
-    formatted_author_name  = (char*)palloc(sizeof(char) * ((strlen(commit_author->name) + PADDING)));
-    formatted_author_email = (char*)palloc(sizeof(char) * ((strlen(commit_author->email) + PADDING)));
+    /* Retrieve string-encoded SHA1 */
+    formatted_commit_id = (char*)palloc(SHA1_LENGTH  + 1);
+    git_oid_fmt(formatted_commit_id, commit_sha1);
+    formatted_commit_id[SHA1_LENGTH] = '\0';
 
-    /* Add PG prefix and ensure it will be NULL-terminated */
-    formatted_commit_id[0]    = 's';
-    formatted_commit_id[SHA1_LENGTH+1] = 0;
-    git_oid_fmt(formatted_commit_id + 1, commit_sha1);
-
-    sha1 = CStringGetDatum(formatted_commit_id);
-
-    sprintf(formatted_commit_msg, "s%s", commit_message);
-    message = CStringGetDatum(formatted_commit_msg);
-
-    sprintf(formatted_author_name, "s%s", commit_author->name);
-    name = CStringGetDatum(formatted_author_name);
-
-    sprintf(formatted_author_email, "s%s", commit_author->email);
-    email = CStringGetDatum(formatted_author_email);
+    sha1    = CStringGetDatum(cstring_to_text_with_len(formatted_commit_id, strlen(formatted_commit_id)));
+    message = CStringGetDatum(cstring_to_text_with_len(commit_message, strlen(commit_message)));
+    name    = CStringGetDatum(cstring_to_text_with_len(commit_author->name, strlen(commit_author->name)));
+    email   = CStringGetDatum(cstring_to_text_with_len(commit_author->email, strlen(commit_author->email)));
 
     date = (commit_author->when.time * 1000000L) - POSTGRES_TO_UNIX_EPOCH_USECS;
 
@@ -603,6 +589,7 @@ static List *gitImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid
     ereport(ERROR,
         (errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
          errmsg("Please set both `path` and `branch`")));
+    return commands;
   }
 
   initStringInfo(&cft_stmt);
