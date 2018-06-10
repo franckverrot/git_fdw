@@ -485,11 +485,7 @@ static TupleTableSlot * gitIterateForeignScan(ForeignScanState *node) {
 
     git_commit_free(commit);
 
-    slot->tts_isempty = false;
-    slot->tts_nvalid = 8; // 8 columns = id, message, name, email, timestamp, insertions, deletions, files_changed
-
-    slot->tts_isnull = (bool *)palloc(sizeof(bool) * slot->tts_nvalid);
-    slot->tts_values = (Datum *)palloc(sizeof(Datum) * slot->tts_nvalid);
+    ExecClearTuple(slot);
 
     position = 0;
     slot->tts_isnull[position++] = false;
