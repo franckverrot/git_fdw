@@ -1,33 +1,26 @@
 sudo: required
-
 language: ruby
-
 addons:
   apt:
     packages:
-      - pgxnclient
-      - ruby-dev
-
+    - pgxnclient
+    - ruby-dev
 services:
-  - docker
-
+- docker
 before_install:
-  - docker build -f tests/Dockerfiles/$PG_VERSION -t franckverrot/git_fdw .
-
+- docker build -f tests/Dockerfiles/$PG_VERSION -t franckverrot/git_fdw .
 script:
-  - docker run franckverrot/git_fdw tests/run.sh $PG_VERSION
-
+- docker run franckverrot/git_fdw tests/run.sh $PG_VERSION
 after_success:
-  - sudo pgxn install pgxn_utils
-  - pgxn-utils bundle
-  - pgxn-utils release ../git_fdw*zip
-
+- sudo pgxn install pgxn_utils
+- pgxn-utils bundle
+- pgxn-utils release ../git_fdw*zip
 env:
+  matrix:
   - PG_VERSION=9.4
   - PG_VERSION=9.5
   - PG_VERSION=9.6
   - PG_VERSION=10
-
-global:
-  - secure: iT6MCq4vzprunQeRLSVsIpi4MHUJBkEUykEDapO53DT+l5zHEtLaR3lv1YzIh92zIUMkbKJLXPxG8dPIS+BhQroV7JTYXHHhz/X5pxc33+enfWYx4VUkleZPTIMzgKa+fTC9VweHqaPld6Q/y6brwEaDnbPkQlhU4RZIIkimyME=
-  - secure: ChrJQNgm0/FmnZZTAmunu8t/H7Okg+CO1tyHdjyGrIKKeE6QcBXPFyPH7IfF+xj78/8PD5iy9r7RUUskUa2Ak9bIf2jctlRL2zCe0Odu1j03jjC01JFyBp+232Gm5kgbTQeIYGlMIL84iOUYihmtvHTf/0O5mNC/H5khLSZhVBk=
+  global:
+  - secure: VJ7B2A31wOlCX2EknK1anGfNSM7jbd4tL0NF4r5SaJcwN41lyGPZ2IzyWmmqmvzpmYiuXQtVFPhe23NVAb1tnJ79FNmOWJ1SBAbhVI/B0Sv3YkmYJzR5Hf3A/JPzSPf1dq0c+GxIOmZVd30uJ1kFpfYv6dHEtXI1SLPkZCZQ6HM=
+  - secure: OHQc9Yo46NxQdbYmCksH18K5ZWi823VMxzbAh73EZRrsPndL/qll1TjGaDEsBconqn/47W9j5A+VhmKKqgsMaouxuDGaKd46tZYz8WCeJobtvEKgP3pRfoAXhC/jXHyY5mVuQK5ZLG+P34GEmP+zezK/zAGF68haQLSWGWSYSKE=
