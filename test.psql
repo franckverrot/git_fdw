@@ -1,0 +1,27 @@
+\echo 'CREATE EXTENSION git_fdw;'
+\prompt p
+CREATE EXTENSION git_fdw;
+\echo 'CREATE SERVER git_fdw FOREIGN DATA WRAPPER git_fdw;'
+\prompt p
+CREATE SERVER git_fdw FOREIGN DATA WRAPPER git_fdw;
+\echo 'CREATE SCHEMA master;'
+\prompt p
+CREATE SCHEMA master;
+\echo 'IMPORT FOREIGN SCHEMA git_data
+FROM SERVER git_fdw 
+INTO master
+OPTIONS (
+    path ''/home/shackle/pggit/postgresql/.git'',
+    branch ''refs/heads/master''
+);'
+\prompt p
+IMPORT FOREIGN SCHEMA git_data
+FROM SERVER git_fdw 
+INTO master
+OPTIONS (
+    path '/home/shackle/pggit/postgresql/.git',
+    branch 'refs/heads/master'
+);
+\echo 'SELECT * FROM master.repository LIMIT 10;'
+\prompt p
+SELECT * FROM master.repository LIMIT 10;
