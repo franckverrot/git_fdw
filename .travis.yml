@@ -19,8 +19,8 @@ script:
 
 after_success:
   - sudo pgxn install pgxn_utils
-  - pgxn-utils bundle git_fdw
-  - pgxn-utils release git_fdw*
+  - pgxn-utils bundle
+  - pgxn-utils release ../git_fdw*zip
 
 env:
   - PG_VERSION=9.4
