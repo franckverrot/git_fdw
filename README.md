@@ -118,13 +118,35 @@ Here are the options:
   * (Required) `branch`: The branch to be used;
   * (Optional) `git_search_path`: Sometimes libgit2 has to be told where to find your configuration. See #10 for details.
 
-## Note on Patches/Pull Requests
+## Contributing
+
+### Patches/Pull Requests workflow
 
 * Fork the project.
 * Make your feature addition or bug fix.
 * Add tests for it. This is important so I don't break it in a future version unintentionally.
 * Commit, do not mess with version or history. (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
 * Send me a pull request. Bonus points for topic branches.
+
+
+### How to run the tests
+
+The project has been configured to run on Travis CI automatically, but one can
+run tests manually with those simple steps (more details in the `.travis.yml`
+file):
+
+    export PG_VERSION=11
+
+    # Build the docker image
+    docker build -f tests/Dockerfiles/$PG_VERSION -t my_git_fdw .
+
+    # Run the tests in the container and mount the current directory inside of the
+    # container at /git_fdw
+    #
+    # This makes it possible to update the dynamic files (like the .sql files)
+    # without having to rebuild the whole image.
+    docker run --rm --volume `pwd`:/git_fdw my_git_fdw tests/run.sh $PG_VERSION
+
 
 ## LICENSE
 
