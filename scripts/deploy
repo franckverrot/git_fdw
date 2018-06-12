@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+sudo pgxn install pgxn_utils
+pgxn-utils bundle
+pgxn-utils release ../git_fdw*zip
