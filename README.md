@@ -51,7 +51,7 @@ With the support of `IMPORT FOREIGN SCHEMA` in PostgreSQL 9.5+:
              OPTIONS (
                  path   '/git_fdw/repo.git',
                  branch 'refs/heads/master',
-                 prefix 'rails_':
+                 prefix 'rails_'
              );
 
 `LIMIT TO` and `EXCEPT` are not supported.
