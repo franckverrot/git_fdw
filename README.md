@@ -135,7 +135,7 @@ The project has been configured to run on Travis CI automatically, but one can
 run tests manually with those simple steps (more details in the `.travis.yml`
 file):
 
-    export PG_VERSION=11
+    export PG_VERSION=12
 
     # Build the docker image
     docker build -f tests/Dockerfiles/$PG_VERSION -t my_git_fdw .
