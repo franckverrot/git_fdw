@@ -8,6 +8,7 @@ addons:
 services:
 - docker
 stages:
+  - name: Test
   - name: deploy
     if: tag =~ ^v
 jobs:
