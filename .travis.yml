@@ -8,13 +8,10 @@ addons:
 services:
 - docker
 stages:
-  - build image and run tests
   - name: deploy
     if: tag =~ ^v
 jobs:
   include:
-    - stage: build image and run tests
-      script: ./scripts/build_image && ./scripts/run_tests
     - stage: deploy
       script: ./scripts/deploy
 env:
