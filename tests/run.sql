@@ -9,4 +9,6 @@ SELECT
 FROM
   git_repos.rails_repository
 WHERE
-  sha1 like '4fc2faf9%'
+  sha1 like '4fc2faf9%';
+
+ANALYZE VERBOSE git_repos.rails_repository;
