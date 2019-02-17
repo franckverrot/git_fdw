@@ -22,7 +22,13 @@
 #include "optimizer/pathnode.h"
 #include "optimizer/planmain.h"
 #include "optimizer/restrictinfo.h"
+
+#if (PG_VERSION_NUM < 120000)
 #include "optimizer/var.h"
+#else
+#include "optimizer/optimizer.h"
+#endif
+
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/builtins.h"
