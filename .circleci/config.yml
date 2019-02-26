@@ -1,0 +1,50 @@
+version: 2
+
+shared: &shared
+  working_directory: ~/repo
+  docker:
+    - image: docker:18.09.2
+  steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: build image
+        command: |
+          docker build -f tests/Dockerfiles/$PG_VERSION -t franckverrot/git_fdw .
+    - run:
+        name: run tests
+        command: |
+          docker run franckverrot/git_fdw tests/run.sh $PG_VERSION
+
+jobs:
+  "9.4":
+    <<: *shared
+    environment:
+      PG_VERSION=9.4
+  "9.5":
+    <<: *shared
+    environment:
+      PG_VERSION=9.5
+  "9.6":
+    <<: *shared
+    environment:
+      PG_VERSION=9.6
+  "10":
+    <<: *shared
+    environment:
+      PG_VERSION=10
+  "11":
+    <<: *shared
+    environment:
+      PG_VERSION=11
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - "9.4"
+      - "9.5"
+      - "9.6"
+      - "10"
+      - "11"
+      # - "12"
