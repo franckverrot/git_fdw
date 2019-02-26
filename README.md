@@ -1,4 +1,4 @@
-# PostgreSQL Git Foreign Data Wrapper [![Build Status](https://travis-ci.org/franckverrot/git_fdw.svg?branch=master)](https://travis-ci.org/franckverrot/git_fdw)
+# PostgreSQL Git Foreign Data Wrapper [![CircleCI](https://circleci.com/gh/franckverrot/git_fdw.svg?style=svg)](https://circleci.com/gh/franckverrot/git_fdw)
 
 git\_fdw is a Git Foreign Data Wrapper for PostgreSQL written in C.
 
@@ -131,8 +131,8 @@ Here are the options:
 
 ### How to run the tests
 
-The project has been configured to run on Travis CI automatically, but one can
-run tests manually with those simple steps (more details in the `.travis.yml`
+The project has been configured to run on Circle CI automatically, but one can
+run tests manually with those simple steps (more details in the `.circleci/config.yml`
 file):
 
     export PG_VERSION=12
