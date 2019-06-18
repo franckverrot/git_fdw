@@ -150,4 +150,4 @@ file):
 
 ## LICENSE
 
-Copyright (c) 2014-2018 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
+Copyright (c) 2014-2019 Franck Verrot. MIT LICENSE. See LICENSE.md for details.
