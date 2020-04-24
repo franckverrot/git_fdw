@@ -37,7 +37,11 @@ jobs:
     <<: *shared
     environment:
       PG_VERSION=11
-
+  "12":
+    <<: *shared
+    environment:
+      PG_VERSION=12
+      
 workflows:
   version: 2
   build:
