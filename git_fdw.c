@@ -448,7 +448,7 @@ static void gitBeginForeignScan(ForeignScanState *node, int eflags)
         GIT_DIRECTION_FETCH,
         &callbacks,
         NULL
-#if LIBGIT2_VER_MINOR > 24
+#if LIBGIT2_VER_MINOR > 24 || LIBGIT2_VER_MAJOR >= 1
         ,
         NULL
 #endif
@@ -869,7 +869,7 @@ int walkRepository(const char *path,
         GIT_DIRECTION_FETCH,
         &callbacks,
         NULL
-#if LIBGIT2_VER_MINOR > 24
+#if LIBGIT2_VER_MINOR > 24 || LIBGIT2_VER_MAJOR >= 1
         ,
         NULL
 #endif
